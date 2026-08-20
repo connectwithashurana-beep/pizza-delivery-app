@@ -1,0 +1,21 @@
+Django==5.0.6
+djangorestframework==3.15.1
+djangorestframework-simplejwt==5.3.1
+django-cors-headers==4.3.1
+django-filter==24.2
+mysqlclient==2.2.4
+python-dotenv==1.0.1
+channels==4.1.0
+channels-redis==4.2.0
+daphne==4.1.2
+celery==5.4.0
+django-celery-beat==2.6.0
+redis==5.0.4
+razorpay==1.4.2
+# razorpay==1.4.2 does `import pkg_resources` at import time. Modern
+# setuptools (>=81) has fully removed pkg_resources, which crashes the
+# entire Django app at startup (payments.urls is imported from core/urls.py)
+# — confirmed by reproducing it in a clean venv. Pin setuptools below that
+# removal until razorpay-python fixes this upstream.
+setuptools<81
+Pillow==10.3.0
