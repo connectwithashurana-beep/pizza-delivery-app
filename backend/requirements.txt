@@ -18,4 +18,4 @@ razorpay==1.4.2
 # — confirmed by reproducing it in a clean venv. Pin setuptools below that
 # removal until razorpay-python fixes this upstream.
 setuptools<81
-Pillow==10.3.0
+Pillow>=10.0.0,<12
