@@ -19,3 +19,4 @@ razorpay==1.4.2
 # removal until razorpay-python fixes this upstream.
 setuptools<81
 Pillow>=10.0.0,<12
+gunicorn==22.0.0
