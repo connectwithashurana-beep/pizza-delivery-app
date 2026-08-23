@@ -185,6 +185,35 @@ All endpoints are prefixed with `/api/`.
 6. Switch Razorpay to Live Mode keys once ready for production payments.
 7. Set up HTTPS (Let's Encrypt) — required for Razorpay live mode and secure cookies.
 
+### Render + Vercel configuration
+
+`render.yaml` defines the Django web service and Celery worker. In Render, enter the
+same values for the `sync: false` variables on both services where applicable:
+
+- `DJANGO_SECRET_KEY`: generate a new long random value; never reuse the local key.
+- `ALLOWED_HOSTS`: the exact Render hostname, for example `pizzahub-api.onrender.com`.
+- `CORS_ORIGINS`, `CSRF_TRUSTED_ORIGINS`, `FRONTEND_URL`: the exact Vercel origin,
+  including `https://` and no trailing slash.
+- `DB_*`: credentials for a managed MySQL-compatible database reachable from Render.
+- `REDIS_URL`: a managed Redis connection string, including TLS settings if supplied.
+- `EMAIL_HOST_USER`: the Gmail address used for sending mail.
+- `EMAIL_HOST_PASSWORD`: the 16-character Gmail App Password, not the normal Gmail password.
+- `DEFAULT_FROM_EMAIL` and `ADMIN_EMAIL`: verified sender and alert recipient addresses.
+- `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`: Razorpay **Test Mode** values initially.
+
+For Vercel, set these variables under **Project Settings → Environment Variables** for
+the Production environment, then redeploy:
+
+| Variable | Value |
+|---|---|
+| `VITE_API_BASE_URL` | `https://<render-host>.onrender.com/api` |
+| `VITE_WS_BASE_URL` | `wss://<render-host>.onrender.com/ws` |
+| `VITE_RAZORPAY_KEY_ID` | The Razorpay Test Key ID (public value only) |
+
+Set the Vercel project root directory to `frontend`. The `frontend/vercel.json` SPA
+rewrite keeps client-side routes such as `/orders/1` working after refresh. Verify the
+backend first at `https://<render-host>.onrender.com/health/`, then deploy the frontend.
+
 ## Notes on Scope
 
 This is a complete, runnable core implementation of every feature area requested (auth, pizza

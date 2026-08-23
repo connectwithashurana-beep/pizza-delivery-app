@@ -1,9 +1,11 @@
 # Backend
 venv/
+.venv/
 __pycache__/
 *.pyc
 backend/media/*
 !backend/media/.gitkeep
+backend/staticfiles/
 .env
 db.sqlite3
 

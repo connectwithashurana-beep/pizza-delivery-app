@@ -1,6 +1,10 @@
 import axios from 'axios'
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || (!import.meta.env.PROD ? 'http://localhost:8000/api' : '')
+
+if (!BASE_URL) {
+  throw new Error('VITE_API_BASE_URL must be configured for production.')
+}
 
 const api = axios.create({ baseURL: BASE_URL })
 

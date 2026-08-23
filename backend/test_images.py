@@ -1,21 +1,31 @@
 import requests
 
-resp = requests.get('http://127.0.0.1:8000/api/inventory/pizzas/?limit=100')
-items = resp.json()['results']
 
-print(f"Total products from API: {len(items)}\n")
-print("Sample products (first 3):")
-for p in items[:3]:
-    print(f"  {p['name']:25} - {p['image'][:75]}...")
+def main():
+    resp = requests.get(
+        "http://127.0.0.1:8000/api/inventory/pizzas/?limit=100",
+        timeout=10,
+    )
+    resp.raise_for_status()
+    items = resp.json()["results"]
 
-print("\nCategory breakdown:")
-categories = {}
-for p in items:
-    cat = p['category']
-    categories.setdefault(cat, 0)
-    categories[cat] += 1
+    print(f"Total products from API: {len(items)}\n")
+    print("Sample products (first 3):")
+    for product in items[:3]:
+        print(f"  {product['name']:25} - {product['image'][:75]}...")
 
-for cat in sorted(categories.keys()):
-    print(f"  {cat.upper():10} - {categories[cat]} items")
+    print("\nCategory breakdown:")
+    categories = {}
+    for product in items:
+        category = product["category"]
+        categories.setdefault(category, 0)
+        categories[category] += 1
 
-print("\n✓ All products have valid Unsplash image URLs")
+    for category in sorted(categories):
+        print(f"  {category.upper():10} - {categories[category]} items")
+
+    print("\n✓ All products have valid Unsplash image URLs")
+
+
+if __name__ == "__main__":
+    main()

@@ -11,7 +11,7 @@ def send_verification_email(email, token):
         f"Click the link to verify your email: {link}",
         settings.DEFAULT_FROM_EMAIL,
         [email],
-        fail_silently=True,
+        fail_silently=False,
     )
 
 
@@ -23,5 +23,5 @@ def send_password_reset_email(email, token):
         f"Click the link to reset your password: {link}",
         settings.DEFAULT_FROM_EMAIL,
         [email],
-        fail_silently=True,
+        fail_silently=False,
     )

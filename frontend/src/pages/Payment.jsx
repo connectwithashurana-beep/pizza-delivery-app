@@ -69,7 +69,7 @@ export default function Payment() {
       rzp.open()
     } catch (error) {
       const detail = error.response?.data
-      const message =h
+      const message =
         detail?.detail ||
         detail?.message ||
         error.message ||

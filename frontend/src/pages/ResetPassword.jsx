@@ -6,15 +6,17 @@ import api from '../services/api.js'
 export default function ResetPassword() {
   const { token } = useParams()
   const navigate = useNavigate()
-  const { register, handleSubmit, formState: { isSubmitting } } = useForm()
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm()
 
   const onSubmit = async (data) => {
     try {
       await api.post('/auth/reset-password/', { token, new_password: data.password })
       toast.success('Password reset successfully! Please login.')
       navigate('/login')
-    } catch {
-      toast.error('Invalid or expired reset link.')
+    } catch (error) {
+      const detail = error.response?.data
+      const message = detail?.new_password?.[0] || detail?.detail || 'Invalid or expired reset link.'
+      toast.error(message)
     }
   }
 
@@ -24,6 +26,10 @@ export default function ResetPassword() {
       <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-4">
         <input type="password" {...register('password', { required: true, minLength: 8 })} placeholder="New Password"
           className="w-full rounded-lg border px-4 py-2.5 dark:bg-gray-800" />
+        <input type="password" {...register('confirm_password', { required: true, validate: (value, values) => value === values.password || 'Passwords do not match' })} placeholder="Confirm New Password"
+          className="w-full rounded-lg border px-4 py-2.5 dark:bg-gray-800" />
+        {errors.password && <p className="text-sm text-red-500">Use at least 8 characters.</p>}
+        {errors.confirm_password && <p className="text-sm text-red-500">{errors.confirm_password.message || 'Please confirm your password.'}</p>}
         <button type="submit" disabled={isSubmitting}
           className="w-full rounded-lg bg-primary-600 py-2.5 font-semibold text-white hover:bg-primary-700 disabled:opacity-50">
           {isSubmitting ? 'Resetting...' : 'Reset Password'}

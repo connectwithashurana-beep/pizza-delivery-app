@@ -5,6 +5,7 @@ from django.db import transaction
 from decimal import Decimal
 from .models import Order, OrderItem, OrderRating
 from inventory.models import Pizza, PizzaBase, Sauce, Cheese, Vegetable
+from inventory.tasks import reduce_stock
 
 
 class OrderItemInputSerializer(serializers.Serializer):
@@ -140,6 +141,7 @@ class CreateOrderSerializer(serializers.Serializer):
         computed_items = []
 
         for item in items_data:
+            item["vegetable_ids"] = list(dict.fromkeys(item.get("vegetable_ids", [])))
             base = PizzaBase.objects.get(id=item["base_id"]) if item.get("base_id") else None
             sauce = Sauce.objects.get(id=item["sauce_id"]) if item.get("sauce_id") else None
             cheese = Cheese.objects.get(id=item["cheese_id"]) if item.get("cheese_id") else None
@@ -180,6 +182,15 @@ class CreateOrderSerializer(serializers.Serializer):
                     raise serializers.ValidationError({"payment_method": "Insufficient wallet balance for this order."})
                 user.wallet_balance -= total
                 user.save(update_fields=["wallet_balance"])
+
+            if payment_method in ("COD", "WALLET"):
+                for ci in computed_items:
+                    for item_type, ingredient in (("base", ci["base"]), ("sauce", ci["sauce"]), ("cheese", ci["cheese"])):
+                        if ingredient and not reduce_stock(item_type, ingredient.id, ci["quantity"]):
+                            raise serializers.ValidationError({"items": f"{ingredient.name} is unavailable or out of stock."})
+                    for vegetable in ci["vegetables"]:
+                        if not reduce_stock("vegetable", vegetable.id, ci["quantity"]):
+                            raise serializers.ValidationError({"items": f"{vegetable.name} is unavailable or out of stock."})
 
             order = Order.objects.create(
                 user=user,

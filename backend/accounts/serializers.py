@@ -75,6 +75,13 @@ class ForgotPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
 
+class ContactSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=120)
+    email = serializers.EmailField()
+    phone = serializers.CharField(max_length=30, required=False, allow_blank=True)
+    message = serializers.CharField(max_length=5000)
+
+
 class ResetPasswordSerializer(serializers.Serializer):
     token = serializers.UUIDField()
     new_password = serializers.CharField(validators=[validate_password])

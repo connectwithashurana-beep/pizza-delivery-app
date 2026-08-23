@@ -1,5 +1,7 @@
 from datetime import timedelta
 from django.contrib.auth import authenticate
+from django.conf import settings
+from django.core.mail import BadHeaderError, EmailMessage, send_mail
 from django.utils import timezone
 from rest_framework import generics, status, permissions
 from rest_framework.response import Response
@@ -12,7 +14,8 @@ import string
 from .models import User, EmailVerificationToken, PasswordResetToken, OTP
 from .serializers import (
     RegisterSerializer, UserSerializer, ChangePasswordSerializer,
-    ForgotPasswordSerializer, ResetPasswordSerializer, SendOTPSerializer, VerifyOTPSerializer,
+    ForgotPasswordSerializer, ResetPasswordSerializer, ContactSerializer,
+    SendOTPSerializer, VerifyOTPSerializer,
 )
 from .tasks import send_verification_email, send_password_reset_email
 
@@ -34,7 +37,18 @@ class RegisterView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         vt = EmailVerificationToken.objects.create(user=user)
-        send_verification_email.delay(user.email, str(vt.token))
+        try:
+            if settings.DEBUG:
+                send_verification_email.delay(user.email, str(vt.token))
+            else:
+                send_verification_email(user.email, str(vt.token))
+        except Exception:
+            vt.delete()
+            user.delete()
+            return Response(
+                {"detail": "Unable to send a verification email right now. Please try again later."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         return Response(
             {"message": "Registration successful. Please check your email to verify your account."},
             status=status.HTTP_201_CREATED,
@@ -143,8 +157,54 @@ class ForgotPasswordView(APIView):
         except User.DoesNotExist:
             return Response({"message": "If that email exists, a reset link was sent."})
         rt = PasswordResetToken.objects.create(user=user)
-        send_password_reset_email.delay(user.email, str(rt.token))
+        try:
+            if settings.DEBUG:
+                send_password_reset_email.delay(user.email, str(rt.token))
+            else:
+                send_password_reset_email(user.email, str(rt.token))
+        except Exception:
+            rt.delete()
+            return Response(
+                {"detail": "Unable to send a reset link right now. Please try again later."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         return Response({"message": "If that email exists, a reset link was sent."})
+
+
+class ContactView(APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+    throttle_scope = "contact"
+
+    def post(self, request):
+        serializer = ContactSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        body = (
+            f"Name: {data['name']}\n"
+            f"Email: {data['email']}\n"
+            f"Phone: {data.get('phone') or 'Not provided'}\n\n"
+            f"Message:\n{data['message']}"
+        )
+        try:
+            EmailMessage(
+                "PizzaHub contact form message",
+                body,
+                settings.DEFAULT_FROM_EMAIL,
+                [settings.ADMIN_EMAIL],
+                reply_to=[data["email"]],
+            ).send(fail_silently=False)
+        except (BadHeaderError, OSError):
+            return Response(
+                {"detail": "Unable to send your message right now. Please try again later."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except Exception:
+            return Response(
+                {"detail": "Unable to send your message right now. Please try again later."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response({"message": "Message sent successfully."}, status=status.HTTP_200_OK)
 
 
 class ResetPasswordView(APIView):
@@ -178,6 +238,7 @@ class ResetPasswordView(APIView):
 class SendOTPView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
+    throttle_scope = "auth"
     
     def post(self, request):
         from django.conf import settings as dj_settings
@@ -221,17 +282,37 @@ class SendOTPView(APIView):
             expires_at=expires_at
         )
         
-        # TODO: Send OTP via email/SMS (integrate with Celery tasks)
-        # For now, return OTP in response (only in dev/test)
+        if otp_type == "email":
+            try:
+                send_mail(
+                    "Your PizzaHub verification code",
+                    f"Your verification code is {otp_code}. It expires in 10 minutes.",
+                    settings.DEFAULT_FROM_EMAIL,
+                    [contact],
+                    fail_silently=False,
+                )
+            except Exception:
+                otp.delete()
+                return Response(
+                    {"detail": "Unable to send the verification code right now."},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+        else:
+            otp.delete()
+            return Response(
+                {"detail": "Phone verification is not configured yet."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
         return Response({
             "message": f"OTP sent to {contact}",
-            "otp": otp_code  # Remove in production
         }, status=status.HTTP_200_OK)
 
 
 class VerifyOTPView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
+    throttle_scope = "auth"
     
     def post(self, request):
         serializer = VerifyOTPSerializer(data=request.data)
@@ -242,12 +323,7 @@ class VerifyOTPView(APIView):
         contact = serializer.validated_data['contact']
         
         try:
-            otp = OTP.objects.get(
-                otp_type=otp_type,
-                otp_code=otp_code,
-                contact=contact,
-                is_verified=False
-            )
+            otp = OTP.objects.get(otp_type=otp_type, contact=contact, is_verified=False)
         except OTP.DoesNotExist:
             return Response(
                 {"detail": "Invalid OTP."},
@@ -267,6 +343,14 @@ class VerifyOTPView(APIView):
             return Response(
                 {"detail": "Maximum attempts exceeded. Request a new OTP."},
                 status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if otp.otp_code != otp_code:
+            otp.attempts += 1
+            otp.save(update_fields=["attempts"])
+            return Response(
+                {"detail": "Invalid OTP."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
         
         # Mark OTP as verified

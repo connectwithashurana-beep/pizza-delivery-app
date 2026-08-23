@@ -46,7 +46,10 @@ def reduce_stock(item_type, item_id, quantity=1):
 
     model = MODEL_MAP.get(item_type)
     if not model:
-        return
-    model.objects.filter(id=item_id).update(
-        stock_quantity=Greatest(F("stock_quantity") - quantity, 0)
-    )
+        return False
+    updated = model.objects.filter(
+        id=item_id,
+        is_available=True,
+        stock_quantity__gte=quantity,
+    ).update(stock_quantity=Greatest(F("stock_quantity") - quantity, 0))
+    return updated == 1

@@ -5,9 +5,16 @@ from django.db import transaction
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import APIException
 from orders.models import Order
 from inventory.tasks import reduce_stock
 from .models import Payment
+
+
+class StockUnavailable(APIException):
+    status_code = 409
+    default_detail = "An ingredient is out of stock. Please contact support."
+    default_code = "stock_unavailable"
 
 
 def get_razorpay_client():
@@ -32,7 +39,7 @@ class CreateRazorpayOrderView(APIView):
         except Order.DoesNotExist:
             return Response({"detail": "Order not found."}, status=404)
 
-        if order.payment_method != "Razorpay":
+        if order.payment_method.lower() != "razorpay":
             return Response({"detail": "This order is not configured for Razorpay."}, status=400)
 
         existing_payment = Payment.objects.filter(order=order).first()
@@ -96,7 +103,7 @@ class VerifyPaymentView(APIView):
         if payment.order.user_id != request.user.id:
             return Response({"detail": "Payment record not found."}, status=404)
 
-        if payment.order.payment_method != "Razorpay":
+        if payment.order.payment_method.lower() != "razorpay":
             return Response({"detail": "This order is not configured for Razorpay."}, status=400)
 
         if payment.status == "success":
@@ -120,7 +127,12 @@ class VerifyPaymentView(APIView):
             rp_payment = client.payment.fetch(razorpay_payment_id)
             captured_amount_paise = int(rp_payment.get("amount", 0))
             expected_amount_paise = int(round(float(payment.amount) * 100))
-            if captured_amount_paise != expected_amount_paise:
+            if (
+                captured_amount_paise != expected_amount_paise
+                or rp_payment.get("currency") != "INR"
+                or rp_payment.get("order_id") != razorpay_order_id
+                or rp_payment.get("status") != "captured"
+            ):
                 payment.status = "failed"
                 payment.save(update_fields=["status"])
                 return Response({"detail": "Payment amount mismatch. Please contact support."}, status=400)
@@ -139,13 +151,17 @@ class VerifyPaymentView(APIView):
 
             for item in order.items.select_related("base", "sauce", "cheese").prefetch_related("vegetables"):
                 if item.base_id:
-                    reduce_stock("base", item.base_id, item.quantity)
+                    if not reduce_stock("base", item.base_id, item.quantity):
+                        raise StockUnavailable()
                 if item.sauce_id:
-                    reduce_stock("sauce", item.sauce_id, item.quantity)
+                    if not reduce_stock("sauce", item.sauce_id, item.quantity):
+                        raise StockUnavailable()
                 if item.cheese_id:
-                    reduce_stock("cheese", item.cheese_id, item.quantity)
+                    if not reduce_stock("cheese", item.cheese_id, item.quantity):
+                        raise StockUnavailable()
                 for veg in item.vegetables.all():
-                    reduce_stock("vegetable", veg.id, item.quantity)
+                    if not reduce_stock("vegetable", veg.id, item.quantity):
+                        raise StockUnavailable()
 
         send_mail(
             "Payment Successful",

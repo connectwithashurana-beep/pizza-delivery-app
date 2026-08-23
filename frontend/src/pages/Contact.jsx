@@ -1,13 +1,19 @@
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
+import api from '../services/api.js'
 
 export default function Contact() {
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm()
 
-  const onSubmit = async () => {
-    await new Promise((r) => setTimeout(r, 800))
-    toast.success('Message sent! We will get back to you soon.')
-    reset()
+  const onSubmit = async (data) => {
+    try {
+      await api.post('/auth/contact/', data)
+      toast.success('Message sent! We will get back to you soon.')
+      reset()
+    } catch (error) {
+      const message = error.response?.data?.detail || 'We could not send your message. Please try again.'
+      toast.error(message)
+    }
   }
 
   return (
@@ -26,7 +32,7 @@ export default function Contact() {
         </div>
         <div>
           <input
-            {...register('email', { required: 'Email is required' })}
+            {...register('email', { required: 'Email is required', pattern: { value: /\S+@\S+\.\S+/, message: 'Enter a valid email address' } })}
             placeholder="Your Email"
             className="w-full rounded-lg border px-4 py-2.5 dark:bg-gray-800"
           />
@@ -40,6 +46,13 @@ export default function Contact() {
             className="w-full rounded-lg border px-4 py-2.5 dark:bg-gray-800"
           />
           {errors.message && <p className="mt-1 text-sm text-red-500">{errors.message.message}</p>}
+        </div>
+        <div>
+          <input
+            {...register('phone')}
+            placeholder="Phone (optional)"
+            className="w-full rounded-lg border px-4 py-2.5 dark:bg-gray-800"
+          />
         </div>
         <button
           type="submit"

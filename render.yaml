@@ -1,0 +1,127 @@
+services:
+  - type: web
+    name: pizzahub-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    startCommand: python manage.py migrate --noinput && daphne -b 0.0.0.0 -p $PORT core.asgi:application
+    healthCheckPath: /health/
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "3306"
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USE_TLS
+        value: "True"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: GST_PERCENT
+        value: "5"
+      - key: DELIVERY_CHARGE
+        value: "40"
+      - key: EMAIL_VERIFICATION_TOKEN_EXPIRY_HOURS
+        value: "24"
+      - key: PASSWORD_RESET_TOKEN_EXPIRY_MINUTES
+        value: "30"
+
+  - type: worker
+    name: pizzahub-worker
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A core worker -l info
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DEBUG
+        value: "False"
+      - key: REDIS_URL
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "3306"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USE_TLS
+        value: "True"
+      - key: GST_PERCENT
+        value: "5"
+      - key: DELIVERY_CHARGE
+        value: "40"
+
+  - type: worker
+    name: pizzahub-beat
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A core beat -l info
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DEBUG
+        value: "False"
+      - key: REDIS_URL
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "3306"
