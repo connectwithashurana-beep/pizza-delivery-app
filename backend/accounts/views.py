@@ -155,11 +155,17 @@ class ForgotPasswordView(APIView):
         try:
             user = User.objects.get(email=serializer.validated_data["email"])
         except User.DoesNotExist:
-            return Response({"message": "If that email exists, a reset link was sent."})
+            return Response(
+                {"detail": "No account exists for that email address."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         rt = PasswordResetToken.objects.create(user=user)
         try:
             if settings.DEBUG:
-                send_password_reset_email.delay(user.email, str(rt.token))
+                # A local Django server normally has no Celery worker running.
+                # Send synchronously in debug so success means the configured
+                # email backend accepted the reset message.
+                send_password_reset_email(user.email, str(rt.token))
             else:
                 send_password_reset_email(user.email, str(rt.token))
         except Exception:

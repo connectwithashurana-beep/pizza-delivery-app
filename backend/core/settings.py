@@ -346,7 +346,14 @@ FRONTEND_URL = os.getenv(
 # EMAIL
 # =========================================================
 
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# Local development must not depend on a live SMTP account. The console
+# backend prints the generated reset/verification message to the Django
+# server terminal; production can opt into SMTP through EMAIL_BACKEND.
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend"
+    if DEBUG else "django.core.mail.backends.smtp.EmailBackend",
+)
 
 EMAIL_HOST = os.getenv(
     "EMAIL_HOST",

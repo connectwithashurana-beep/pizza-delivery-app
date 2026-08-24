@@ -47,7 +47,7 @@ export default function OrderDetails() {
 
   useEffect(() => {
     fetchOrder()
-    const wsBase = import.meta.env.VITE_WS_BASE_URL || (!import.meta.env.PROD ? 'ws://localhost:8000/ws' : '')
+    const wsBase = import.meta.env.VITE_WS_BASE_URL || (!import.meta.env.PROD ? 'ws://127.0.0.1:8000/ws' : '')
     const token = localStorage.getItem('access_token')
     if (!wsBase) return undefined
 
