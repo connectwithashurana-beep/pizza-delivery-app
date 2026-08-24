@@ -7,6 +7,8 @@ backend/media/*
 !backend/media/.gitkeep
 backend/staticfiles/
 .env
+.env.*
+!.env.example
 db.sqlite3
 
 # Frontend
