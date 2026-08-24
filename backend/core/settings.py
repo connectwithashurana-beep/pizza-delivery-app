@@ -135,13 +135,15 @@ TEMPLATES = [
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
-        "NAME": os.getenv("DB_NAME", "pizza_delivery"),
-        "USER": os.getenv("DB_USER", "root"),
-        "PASSWORD": os.getenv("DB_PASSWORD", ""),
-        "HOST": os.getenv("DB_HOST", "localhost"),
-        "PORT": os.getenv("DB_PORT", "3306"),
+        "NAME": "defaultdb",
+        "USER": "avnadmin",
+        "PASSWORD": os.getenv("AIVEN_PASSWORD"),
+        "HOST": "mysql-37630aba-connectwithashurana-6069.g.aivencloud.com",
+        "PORT": "17559",
         "OPTIONS": {
-            "charset": "utf8mb4",
+            "ssl": {
+                "ca": "path/to/ca.pem",
+            }
         },
     }
 }
