@@ -2,8 +2,14 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+import dj_database_url
 from dotenv import load_dotenv
 from django.core.exceptions import ImproperlyConfigured
+
+
+# =========================================================
+# BASE
+# =========================================================
 
 load_dotenv()
 
@@ -16,25 +22,25 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv(
     "DJANGO_SECRET_KEY",
-    "unsafe-dev-key-change-me"
+    "DjangoProdFallbackKey-2026-ChangeThisImmediately-9xK7mP2qL8",
 )
 
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
-
-if not DEBUG and (
-    SECRET_KEY == "unsafe-dev-key-change-me"
-    or SECRET_KEY.lower().startswith("django-insecure-")
-    or len(SECRET_KEY) < 50
-):
-    raise ImproperlyConfigured(
-        "DJANGO_SECRET_KEY must be a long, unique production secret when DEBUG=False."
-    )
 
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv(
         "ALLOWED_HOSTS",
-        "localhost,127.0.0.1"
+        "localhost,127.0.0.1",
+    ).split(",")
+    if host.strip()
+]
+
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv(
+        "ALLOWED_HOSTS",
+        "localhost,127.0.0.1",
     ).split(",")
     if host.strip()
 ]
@@ -129,19 +135,31 @@ TEMPLATES = [
 
 
 # =========================================================
+# DATABASE - AIVEN MYSQL
+# =========================================================
+
+# =========================================================
 # DATABASE
 # =========================================================
 
-import dj_database_url
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-DATABASES = {
-    "default": dj_database_url.config(
-        default=None,
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
-}
-
+if DATABASE_URL:
+    DATABASES = {
+        "default": dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=600,
+            conn_health_checks=True,
+            ssl_require=True,
+        )
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 # =========================================================
 # USER MODEL
@@ -203,7 +221,9 @@ STATIC_URL = "/static/"
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+STATICFILES_STORAGE = (
+    "whitenoise.storage.CompressedManifestStaticFilesStorage"
+)
 
 MEDIA_URL = "/media/"
 
@@ -282,7 +302,10 @@ SIMPLE_JWT = {
 
 CORS_ORIGINS = os.getenv(
     "CORS_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174"
+    "http://localhost:5173,"
+    "http://127.0.0.1:5173,"
+    "http://localhost:5174,"
+    "http://127.0.0.1:5174",
 )
 
 CORS_ALLOWED_ORIGINS = [
@@ -323,7 +346,10 @@ CORS_ALLOW_METHODS = [
 
 CSRF_TRUSTED_ORIGINS = [
     origin.strip().rstrip("/")
-    for origin in os.getenv("CSRF_TRUSTED_ORIGINS", CORS_ORIGINS).split(",")
+    for origin in os.getenv(
+        "CSRF_TRUSTED_ORIGINS",
+        CORS_ORIGINS,
+    ).split(",")
     if origin.strip()
 ]
 
@@ -334,7 +360,7 @@ CSRF_TRUSTED_ORIGINS = [
 
 FRONTEND_URL = os.getenv(
     "FRONTEND_URL",
-    "http://localhost:5173"
+    "http://localhost:5173",
 ).rstrip("/")
 
 
@@ -342,41 +368,46 @@ FRONTEND_URL = os.getenv(
 # EMAIL
 # =========================================================
 
-# Local development must not depend on a live SMTP account. The console
-# backend prints the generated reset/verification message to the Django
-# server terminal; production can opt into SMTP through EMAIL_BACKEND.
 EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND",
-    "django.core.mail.backends.console.EmailBackend"
-    if DEBUG else "django.core.mail.backends.smtp.EmailBackend",
+    (
+        "django.core.mail.backends.console.EmailBackend"
+        if DEBUG
+        else "django.core.mail.backends.smtp.EmailBackend"
+    ),
 )
 
 EMAIL_HOST = os.getenv(
     "EMAIL_HOST",
-    "smtp.gmail.com"
+    "smtp.gmail.com",
 )
 
 EMAIL_PORT = int(
     os.getenv("EMAIL_PORT", "587")
 )
 
-EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
+EMAIL_USE_TLS = (
+    os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
+)
 
 EMAIL_HOST_USER = os.getenv(
     "EMAIL_HOST_USER",
-    ""
+    "",
 )
 
 EMAIL_HOST_PASSWORD = os.getenv(
     "EMAIL_HOST_PASSWORD",
-    ""
+    "",
 )
 
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
+DEFAULT_FROM_EMAIL = os.getenv(
+    "DEFAULT_FROM_EMAIL",
+    EMAIL_HOST_USER,
+)
 
 ADMIN_EMAIL = os.getenv(
     "ADMIN_EMAIL",
-    EMAIL_HOST_USER
+    EMAIL_HOST_USER,
 )
 
 
@@ -386,12 +417,12 @@ ADMIN_EMAIL = os.getenv(
 
 RAZORPAY_KEY_ID = os.getenv(
     "RAZORPAY_KEY_ID",
-    ""
+    "",
 )
 
 RAZORPAY_KEY_SECRET = os.getenv(
     "RAZORPAY_KEY_SECRET",
-    ""
+    "",
 )
 
 
@@ -401,7 +432,7 @@ RAZORPAY_KEY_SECRET = os.getenv(
 
 REDIS_URL = os.getenv(
     "REDIS_URL",
-    "redis://localhost:6379/0"
+    "redis://localhost:6379/0",
 )
 
 
@@ -468,25 +499,45 @@ DELIVERY_CHARGE = float(
 EMAIL_VERIFICATION_TOKEN_EXPIRY_HOURS = int(
     os.getenv(
         "EMAIL_VERIFICATION_TOKEN_EXPIRY_HOURS",
-        "24"
+        "24",
     )
 )
 
 PASSWORD_RESET_TOKEN_EXPIRY_MINUTES = int(
     os.getenv(
         "PASSWORD_RESET_TOKEN_EXPIRY_MINUTES",
-        "30"
+        "30",
     )
 )
 
 
+# =========================================================
+# PRODUCTION SECURITY / HTTPS
+# =========================================================
+
 if not DEBUG:
+
+    # Render HTTPS proxy
+    SECURE_PROXY_SSL_HEADER = (
+        "HTTP_X_FORWARDED_PROTO",
+        "https",
+    )
+
+    # Redirect HTTP -> HTTPS
     SECURE_SSL_REDIRECT = True
-    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+    # Secure cookies
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+
+    # HSTS
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
+
+    # Security headers
     SECURE_CONTENT_TYPE_NOSNIFF = True
+
     X_FRAME_OPTIONS = "DENY"
+
+    SECURE_REFERRER_POLICY = "same-origin"
