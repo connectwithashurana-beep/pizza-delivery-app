@@ -138,10 +138,6 @@ TEMPLATES = [
 # DATABASE - AIVEN MYSQL
 # =========================================================
 
-# =========================================================
-# DATABASE
-# =========================================================
-
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if DATABASE_URL:
@@ -154,13 +150,17 @@ if DATABASE_URL:
         )
     }
 else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
+    if DEBUG:
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.sqlite3",
+                "NAME": BASE_DIR / "db.sqlite3",
+            }
         }
-    }
-
+    else:
+        raise ImproperlyConfigured(
+            "DATABASE_URL is required when DEBUG=False."
+        )
 # =========================================================
 # USER MODEL
 # =========================================================
