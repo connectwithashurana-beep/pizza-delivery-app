@@ -132,20 +132,14 @@ TEMPLATES = [
 # DATABASE
 # =========================================================
 
+import dj_database_url
+
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": "defaultdb",
-        "USER": "avnadmin",
-        "PASSWORD": os.getenv("AIVEN_PASSWORD"),
-        "HOST": "mysql-37630aba-connectwithashurana-6069.g.aivencloud.com",
-        "PORT": "17559",
-        "OPTIONS": {
-            "ssl": {
-                "ca": "path/to/ca.pem",
-            }
-        },
-    }
+    "default": dj_database_url.config(
+        default=None,
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 
